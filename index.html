@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Mini Arcade</title>
+    <!-- Supabase JavaScript Kütüphanesi -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px 10px;
+            position: relative;
+            overflow-x: hidden;
+            background-image: 
+                linear-gradient(90deg, rgba(225,6,0,0.03) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(225,6,0,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Ana Menü / Arcade Karşılama Ekranı */
+        #arcade-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 85vh;
+            text-align: center;
+            width: 100%;
+            max-width: 800px;
+            padding: 0 15px;
+        }
+
+        #arcade-menu h1 {
+            font-size: 2.5rem;
+            font-style: italic;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(225,6,0,0.5);
+        }
+
+        #arcade-menu p {
+            color: #888;
+            font-size: 1rem;
+            margin-bottom: 30px;
+        }
+
+        .arcade-grid {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .arcade-card {
+            background: #181818;
+            border: 2px solid #333;
+            border-top: 4px solid #e10600;
+            padding: 30px 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 320px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+
+        .arcade-card:hover {
+            transform: translateY(-5px);
+            border-color: #e10600;
+            box-shadow: 0 15px 40px rgba(225,6,0,0.4);
+        }
+
+        .arcade-card h2 {
+            font-size: 1.4rem;
+            font-style: italic;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .arcade-card span {
+            color: #888;
+            font-size: 0.85rem;
+            display: block;
+            margin-bottom: 20px;
+        }
+
+        .arcade-btn {
+            background-color: #e10600;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-weight: bold;
+            font-style: italic;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        .arcade-card:hover .arcade-btn {
+            background-color: #ff1e00;
+        }
+
+        /* Oyun Konteynerleri */
+        .game-section {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .back-menu-btn {
+            align-self: flex-start;
+            background: #222;
+            color: #aaa;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .back-menu-btn:hover {
+            background: #e10600;
+            color: white;
+            border-color: #e10600;
+        }
+
+        /* --- F1 PİLOT TAHMİN OYUNU STİLLERİ --- */
+        .start-lights {
+            display: flex;
+            gap: 10px;
+            background: #0a0a0a;
+            padding: 8px 15px;
+            border-radius: 30px;
+            border: 2px solid #333;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+        }
+
+        .light {
+            width: 12px;
+            height: 12px;
+            background-color: #e10600;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #e10600;
+        }
+
+        .top-buttons {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            z-index: 100;
+            justify-content: flex-end;
+        }
+
+        .f1-action-btn {
+            background-color: #1a1a1a;
+            color: #e10600;
+            border: 2px solid #e10600;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            font-weight: 900;
+            font-style: italic;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        #pitstop-btn { color: #f1c40f; border-color: #f1c40f; }
+        #settings-btn { color: #3498db; border-color: #3498db; }
+
+        #login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 5, 0.96);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+            padding: 15px;
+        }
+
+        .login-card {
+            background: #181818; padding: 30px 20px; border-radius: 12px;
+            border-top: 4px solid #e10600; border-bottom: 4px solid #e10600;
+            text-align: center; max-width: 400px; width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+        }
+
+        .login-card h2 { color: white; margin-bottom: 10px; font-style: italic; text-transform: uppercase; font-size: 1.6rem; }
+        .login-card p { color: #999; margin-bottom: 20px; font-size: 0.9rem; }
+        .login-card input, .login-card select {
+            width: 100%; padding: 12px; background: #222; border: 1px solid #444;
+            color: white; border-radius: 6px; font-size: 1rem; margin-bottom: 15px; outline: none;
+        }
+        .login-card button {
+            width: 100%; background: #e10600; color: white; border: none;
+            padding: 12px; font-size: 1rem; font-weight: bold; font-style: italic;
+            border-radius: 6px; cursor: pointer; text-transform: uppercase;
+        }
+
+        .main-layout { display: flex; gap: 20px; width: 100%; max-width: 1300px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+        #game-content { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 950px; }
+
+        h1.game-title { font-size: 1.8rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; font-style: italic; text-align: center; }
+        .subtitle { color: #888; margin-bottom: 15px; font-size: 0.9rem; text-align: center; }
+        #player-welcome { background: #1f1f1f; padding: 6px 14px; border-radius: 20px; border: 1px solid #333; color: #e10600; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; font-size: 0.85rem; }
+
+        .search-container { position: relative; width: 100%; max-width: 650px; margin-bottom: 25px; padding: 0 10px; }
+        .input-group { display: flex; gap: 8px; }
+        .search-container input { flex: 1; padding: 12px; font-size: 1rem; background: #1c1c1c; border: 2px solid #333; color: white; border-radius: 8px; outline: none; }
+        .search-container button { background-color: #e10600; color: white; padding: 0 20px; font-size: 1rem; font-weight: bold; font-style: italic; border: none; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
+
+        .suggestions-box {
+            position: absolute; top: 100%; left: 10px; right: 10px; background: #181818;
+            border: 1px solid #333; border-top: none; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 99; display: none;
+        }
+        .suggestion-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #262626; color: #ccc; text-align: left; font-size: 0.9rem; }
+        .suggestion-item:hover { background-color: #e10600; color: white; }
+
+        #pitstop-banner { width: 90%; max-width: 650px; background: #1f1f1f; border-left: 4px solid #f1c40f; color: #f1c40f; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; font-weight: bold; display: none; }
+
+        .table-container { width: 100%; max-width: 950px; overflow-x: auto; background: rgba(22, 22, 22, 0.9); padding: 10px; border-radius: 12px; border: 1px solid #2a2a2a; }
+        table { width: 100%; border-collapse: collapse; text-align: center; min-width: 600px; }
+        th { background-color: #181818; color: #777; font-size: 0.75rem; text-transform: uppercase; padding: 12px 8px; border-bottom: 2px solid #333; }
+        td { padding: 12px 8px; font-weight: bold; font-size: 0.85rem; border-bottom: 1px solid #222; }
+        .box { display: inline-block; padding: 8px 10px; border-radius: 6px; color: white; font-weight: bold; min-width: 75px; font-size: 0.8rem; }
+        .green { background-color: #1e8e3e; } .red { background-color: #d93025; }
+
+        #scoreboard-panel { width: 100%; max-width: 400px; background: rgba(22, 22, 22, 0.95); border: 1px solid #333; border-top: 4px solid #f1c40f; border-radius: 12px; padding: 15px; margin-top: 20px; }
+        #scoreboard-panel h3 { color: #f1c40f; font-size: 1rem; text-transform: uppercase; font-style: italic; margin-bottom: 12px; text-align: center; border-bottom: 1px solid #333; padding-bottom: 6px; }
+        .score-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #222; font-size: 0.85rem; }
+        .team-code-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 900; color: white; letter-spacing: 1px; }
+        .score-tries { background: #e10600; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+
+        /* --- F1 REAKSİYON ÖLÇER STİLLERİ --- */
+        .reflex-container {
+            background: #181818; padding: 30px 20px; border-radius: 14px;
+            border-top: 4px solid #f1c40f; border-bottom: 4px solid #f1c40f;
+            text-align: center; max-width: 400px; width: 100%; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+        }
+        .f1-lights-box { display: flex; justify-content: center; gap: 8px; background: #0a0a0a; padding: 12px 20px; border-radius: 40px; border: 2px solid #333; margin-bottom: 25px; }
+        .f1-bulb { width: 20px; height: 20px; background-color: #222; border-radius: 50%; border: 2px solid #444; }
+        .f1-bulb.active { background-color: #e10600; box-shadow: 0 0 12px #e10600; }
+        .f1-bulb.green { background-color: #2ecc71 !important; box-shadow: 0 0 15px #2ecc71 !important; }
+        #reaction-btn { width: 100%; padding: 20px; font-size: 1.2rem; font-weight: 900; font-style: italic; text-transform: uppercase; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-ready { background-color: #e10600; color: white; }
+        .btn-wait { background-color: #333; color: #777; cursor: not-allowed; }
+        .btn-click { background-color: #2ecc71; color: #121212; box-shadow: 0 0 20px rgba(46,204,113,0.8); }
+
+        #result-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92); display: none; justify-content: center; align-items: center; z-index: 2000; padding: 15px;
+        }
+        .result-card { background: #181818; padding: 30px 20px; border-radius: 12px; border-top: 4px solid #e10600; border-bottom: 4px solid #e10600; text-align: center; max-width: 400px; width: 100%; }
+
+        /* Masaüstü Ekran Genişlik Ayarları */
+        @media (min-width: 768px) {
+            #arcade-menu h1 { font-size: 3rem; }
+            .arcade-card { width: 320px; padding: 35px 30px; }
+            .top-buttons { top: 25px; right: 30px; flex-direction: column; }
+            .f1-action-btn { padding: 8px 16px; font-size: 0.9rem; }
+            h1.game-title { font-size: 2.3rem; }
+            #scoreboard-panel { width: 320px; margin-top: 0; }
+            .main-layout { align-items: flex-start; }
+            .reflex-container { max-width: 500px; padding: 40px; }
+            .f1-lights-box { padding: 15px 25px; gap: 10px; }
+            .f1-bulb { width: 25px; height: 25px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- GİRİŞ / PROFİL MODALI -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2 id="modal-header-title">F1 MİNİ ARCADE</h2>
+            <p id="modal-header-desc">Piste çıkmak ve liderlik tablolarına adını yazdırmak için rumuzunu gir!</p>
+            <input type="text" id="nicknameInput" placeholder="Rumuzunu yaz..." autocomplete="off">
+            <select id="teamSelect">
+                <option value="" disabled selected>Favori Takımını Seç</option>
+                <option value="Ferrari">Ferrari (FER)</option>
+                <option value="Red Bull">Red Bull Racing (RBR)</option>
+                <option value="Mercedes">Mercedes-AMG (MER)</option>
+                <option value="McLaren">McLaren (MCL)</option>
+                <option value="Aston Martin">Aston Martin (AST)</option>
+                <option value="Alpine">Alpine (ALP)</option>
+                <option value="Williams">Williams (WIL)</option>
+                <option value="Haas">Haas F1 Team (HAA)</option>
+                <option value="Racing Bulls">Racing Bulls (RB)</option>
+                <option value="Audi">Audi F1 (AUD)</option>
+                <option value="Cadillac">Cadillac F1 (CAD)</option>
+            </select>
+            <button onclick="oyunaGirisYap()">Piste Çık</button>
+        </div>
+    </div>
+
+    <!-- ANA MENÜ EKRANI -->
+    <div id="arcade-menu">
+        <h1>F1 Mini Arcade</h1>
+        <p>Oynamak istediğin modu seç ve mücadeleye başla!</p>
+        <div class="arcade-grid">
+            <div class="arcade-card" onclick="oyunAc('pilot')">
+                <h2>Pilot Tahmini</h2>
+                <span>2020-2026 Sezonu Gizli Pilotu Bulma Oyunu</span>
+                <button class="arcade-btn">Oyna</button>
+            </div>
+            <div class="arcade-card" onclick="oyunAc('refleks')">
+                <h2>F1 Reaksiyon Ölçer</h2>
+                <span>Start Işıkları ve Pit Stop Refleks Testi</span>
+                <button class="arcade-btn">Oyna</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. OYUN: PİLOT TAHMİNİ SEKSİYONU -->
+    <div id="pilot-game-section" class="game-section">
+        <div class="top-buttons">
+            <button class="back-menu-btn" onclick="anaMenuyeDon()" style="margin-bottom:0;">← Menü</button>
+            <button id="pitstop-btn" class="f1-action-btn" onclick="pitStopYap()">Pit (<span id="pitStopCount">2</span>)</button>
+            <button id="settings-btn" class="f1-action-btn" onclick="ayarlariAc()">Profil</button>
+            <button id="dnf-btn" class="f1-action-btn" onclick="yarisiBirak()" style="color:#e10600;">DNF</button>
+        </div>
+
+        <div id="game-content" style="padding-top: 50px;">
+            <div class="start-lights">
+                <div class="light"></div><div class="light"></div><div class="light"></div><div class="light"></div><div class="light"></div>
+            </div>
+            <h1 class="game-title">Pilot Tahmin Oyunu</h1>
+            <div class="subtitle">Gizli pilotu bulmak için bir pilot ismi yazmaya başla!</div>
+            <div id="player-welcome">Sürücü: <span id="displayName"></span></div>
+            <div id="pitstop-banner"></div>
+
+            <div class="search-container">
+                <div class="input-group">
+                    <input type="text" id="guessInput" placeholder="Örn: Hamilton, Verstappen..." autocomplete="off" oninput="onerileriGoster()">
+                    <button onclick="tahminEt()">Tahmin</button>
+                </div>
+                <div id="suggestions" class="suggestions-box"></div>
+            </div>
+
+            <div style="display: flex; gap: 20px; width: 100%; max-width: 1100px; justify-content: center; flex-wrap: wrap; padding: 0 10px;">
+                <div class="table-container" style="flex: 1; min-width: 300px;">
+                    <table id="resultTable">
+                        <thead>
+                            <tr>
+                                <th>Pilot</th><th>Takım</th><th>Ülke</th><th>Yaş</th><th>No</th><th>Şamp.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="scoreboard-panel">
+                    <h3>🏆 Liderlik Tablosu</h3>
+                    <div id="scoreboard-list">Yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. OYUN: REAKSİYON ÖLÇER SEKSİYONU -->
+    <div id="reflex-game-section" class="game-section">
+        <div style="width: 100%; max-width: 500px; padding: 15px;">
+            <button class="back-menu-btn" onclick="anaMenuyeDon()">← Menü</button>
+        </div>
+        <div style="display: flex; justify-content: center; align-items: center; width: 100%; padding: 10px;">
+            <div class="reflex-container">
+                <h1 style="font-size:1.6rem; font-style:italic; text-transform:uppercase; margin-bottom:10px;">F1 Reaksiyon Ölçer</h1>
+                <p style="color:#888; margin-bottom:20px; font-size:0.9rem;">Işıklar söndüğü andaki reaksiyon süreni ölç ve liderlik tablosuna adını yazdır!</p>
+
+                <div class="f1-lights-box">
+                    <div class="f1-bulb" id="rb1"></div><div class="f1-bulb" id="rb2"></div><div class="f1-bulb" id="rb3"></div><div class="f1-bulb" id="rb4"></div><div class="f1-bulb" id="rb5"></div>
+                </div>
+
+                <button id="reaction-btn" class="btn-ready" onclick="refleksButonTiklandi()">OYUNA BAŞLA</button>
+                <div id="reflex-result-display" style="margin-top:15px; font-weight:bold; color:#f1c40f; min-height:25px; font-size:1rem;"></div>
+
+                <div class="leaderboard-section" style="margin-top:20px; border-top:1px solid #333; padding-top:12px; text-align:left;">
+                    <h3 style="font-size:0.95rem; color:#f1c40f; text-transform:uppercase; font-style:italic; margin-bottom:10px; text-align:center;">⚡ En Hızlı Reaksiyonlar</h3>
+                    <div id="refleks-score-list">Yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DNF / OYUN SONU MODALI -->
+    <div id="result-modal">
+        <div class="result-card">
+            <h2 id="result-modal-title" style="color:#e10600; font-size:1.5rem; font-style:italic; text-transform:uppercase; margin-bottom:12px;">DNF</h2>
+            <p id="result-modal-desc" style="color:#aaa; margin-bottom:12px; font-size:0.9rem;">Doğru cevap şuydu:</p>
+            <div style="color:#e10600; font-size:1rem; font-weight:bold; text-transform:uppercase; margin-bottom:6px;">Doğru Cevap</div>
+            <div id="correctPilotName" style="font-size:1.8rem; font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:20px; background:#222; padding:12px; border-radius:8px; border:2px solid #e10600;">MAX VERSTAPPEN</div>
+            <button onclick="yeniTuraBasla()" style="background-color:#e10600; color:white; border:none; padding:12px; font-size:1rem; font-weight:bold; font-style:italic; border-radius:6px; cursor:pointer; width:100%; text-transform:uppercase;">Yeni Tura Başla</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kdcwqlupryvncklvosys.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_aL2K54pYu4aNmh9CxKnyKg_Xf1BmFQQ';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let aktifKullanici = "";
+        let aktifTakim = "";
+        let pitStopHakki = 2;
+
+        const takimKodlari = {
+            "Ferrari": { kod: "FER", renk: "#dc0000" },
+            "Red Bull": { kod: "RBR", renk: "#1e41ff" },
+            "Mercedes": { kod: "MER", renk: "#00d2be" },
+            "McLaren": { kod: "MCL", renk: "#ff8700" },
+            "Aston Martin": { kod: "AST", renk: "#006f62" },
+            "Alpine": { kod: "ALP", renk: "#0090ff" },
+            "Williams": { kod: "WIL", renk: "#005aff" },
+            "Haas": { kod: "HAA", renk: "#b6babd" },
+            "Racing Bulls": { kod: "RB", renk: "#6692ff" },
+            "Audi": { kod: "AUD", renk: "#f2a900" },
+            "Cadillac": { kod: "CAD", renk: "#111111" }
+        };
+
+        const pilotlar = [
+            { ad: "Max Verstappen", takim: "Red Bull", ulke: "Hollanda", yas: 29, numara: 1, sampiyonluk: 4 },
+            { ad: "Isack Hadjar", takim: "Red Bull", ulke: "Fransa", yas: 22, numara: 6, sampiyonluk: 0 },
+            { ad: "George Russell", takim: "Mercedes", ulke: "İngiltere", yas: 28, numara: 63, sampiyonluk: 0 },
+            { ad: "Kimi Antonelli", takim: "Mercedes", ulke: "İtalya", yas: 20, numara: 12, sampiyonluk: 0 },
+            { ad: "Charles Leclerc", takim: "Ferrari", ulke: "Monako", yas: 29, numara: 16, sampiyonluk: 0 },
+            { ad: "Lewis Hamilton", takim: "Ferrari", ulke: "İngiltere", yas: 41, numara: 44, sampiyonluk: 7 },
+            { ad: "Lando Norris", takim: "McLaren", ulke: "İngiltere", yas: 27, numara: 4, sampiyonluk: 1 },
+            { ad: "Oscar Piastri", takim: "McLaren", ulke: "Avustralya", yas: 25, numara: 81, sampiyonluk: 0 },
+            { ad: "Fernando Alonso", takim: "Aston Martin", ulke: "İspanya", yas: 45, numara: 14, sampiyonluk: 2 },
+            { ad: "Lance Stroll", takim: "Aston Martin", ulke: "Kanada", yas: 28, numara: 18, sampiyonluk: 0 },
+            { ad: "Pierre Gasly", takim: "Alpine", ulke: "Fransa", yas: 30, numara: 10, sampiyonluk: 0 },
+            { ad: "Franco Colapinto", takim: "Alpine", ulke: "Arjantin", yas: 23, numara: 43, sampiyonluk: 0 },
+            { ad: "Carlos Sainz", takim: "Williams", ulke: "İspanya", yas: 32, numara: 55, sampiyonluk: 0 },
+            { ad: "Alex Albon", takim: "Williams", ulke: "Tayland", yas: 30, numara: 23, sampiyonluk: 0 },
+            { ad: "Esteban Ocon", takim: "Haas", ulke: "Fransa", yas: 29, numara: 31, sampiyonluk: 0 },
+            { ad: "Oliver Bearman", takim: "Haas", ulke: "İngiltere", yas: 21, numara: 87, sampiyonluk: 0 },
+            { ad: "Liam Lawson", takim: "Racing Bulls", ulke: "Yeni Zelanda", yas: 24, numara: 30, sampiyonluk: 0 },
+            { ad: "Arvid Lindblad", takim: "Racing Bulls", ulke: "İngiltere", yas: 19, numara: 22, sampiyonluk: 0 },
+            { ad: "Nico Hülkenberg", takim: "Audi", ulke: "Almanya", yas: 39, numara: 27, sampiyonluk: 0 },
+            { ad: "Gabriel Bortoleto", takim: "Audi", ulke: "Brezilya", yas: 22, numara: 5, sampiyonluk: 0 },
+            { ad: "Valtteri Bottas", takim: "Cadillac", ulke: "Finlandiya", yas: 37, numara: 77, sampiyonluk: 0 },
+            { ad: "Sergio Pérez", takim: "Cadillac", ulke: "Meksika", yas: 36, numara: 11, sampiyonluk: 0 },
+            { ad: "Daniel Ricciardo", takim: "McLaren", ulke: "Avustralya", yas: 37, numara: 3, sampiyonluk: 0 },
+            { ad: "Sebastian Vettel", takim: "Ferrari", ulke: "Almanya", yas: 39, numara: 5, sampiyonluk: 4 },
+            { ad: "Kimi Räikkönen", takim: "Alfa Romeo", ulke: "Finlandiya", yas: 47, numara: 7, sampiyonluk: 1 },
+            { ad: "Mick Schumacher", takim: "Haas", ulke: "Almanya", yas: 27, numara: 47, sampiyonluk: 0 },
+            { ad: "Yuki Tsunoda", takim: "Racing Bulls", ulke: "Japonya", yas: 26, numara: 22, sampiyonluk: 0 },
+            { ad: "Guanyu Zhou", takim: "Sauber", ulke: "Çin", yas: 27, numara: 24, sampiyonluk: 0 },
+            { ad: "Logan Sargeant", takim: "Williams", ulke: "Amerika", yas: 25, numara: 2, sampiyonluk: 0 },
+            { ad: "Michael Schumacher", takim: "Ferrari", ulke: "Almanya", yas: 57, numara: 47, sampiyonluk: 7 },
+            { ad: "Ayrton Senna", takim: "McLaren", ulke: "Brezilya", yas: 66, numara: 12, sampiyonluk: 3 }
+        ];
+
+        function gizliPilotSec() {
+            let oncekiPilot = localStorage.getItem('son_gizli_pilot');
+            let uygunPilotlar = pilotlar;
+            if (oncekiPilot) uygunPilotlar = pilotlar.filter(p => p.ad !== oncekiPilot);
+            let rastgelePilot = uygunPilotlar[Math.floor(Math.random() * uygunPilotlar.length)];
+            localStorage.setItem('son_gizli_pilot', rastgelePilot.ad);
+            return rastgelePilot;
+        }
+
+        let gizliPilot = gizliPilotSec();
+        let denemeSayisi = 0;
+
+        window.onload = function() {
+            const kayitliIsim = localStorage.getItem('f1_nickname');
+            const kayitliTakim = localStorage.getItem('f1_team');
+            if (kayitliIsim && kayitliTakim) {
+                aktifKullanici = kayitliIsim;
+                aktifTakim = kayitliTakim;
+                document.getElementById('login-overlay').style.display = 'none';
+                skorlariGetir();
+                refleksSkorlariniGetir();
+            }
+        };
+
+        function oyunaGirisYap() {
+            const isim = document.getElementById('nicknameInput').value.trim();
+            const takim = document.getElementById('teamSelect').value;
+            if (isim.length < 2) { alert("Lütfen geçerli bir rumuz gir!"); return; }
+            if (!takim) { alert("Lütfen favori takımını seç!"); return; }
+
+            aktifKullanici = isim;
+            aktifTakim = takim;
+            localStorage.setItem('f1_nickname', aktifKullanici);
+            localStorage.setItem('f1_team', aktifTakim);
+
+            document.getElementById('login-overlay').style.display = 'none';
+            skorlariGetir();
+            refleksSkorlariniGetir();
+        }
+
+        function ayarlariAc() {
+            document.getElementById('modal-header-title').textContent = "PROFİLİ DÜZENLE";
+            document.getElementById('nicknameInput').value = aktifKullanici;
+            document.getElementById('teamSelect').value = aktifTakim;
+            document.getElementById('login-overlay').style.display = 'flex';
+        }
+
+        function oyunAc(tur) {
+            document.getElementById('arcade-menu').style.display = 'none';
+            if (tur === 'pilot') {
+                document.getElementById('pilot-game-section').style.display = 'flex';
+                document.getElementById('displayName').textContent = `${aktifKullanici} [${aktifTakim}]`;
+                skorlariGetir();
+            } else if (tur === 'refleks') {
+                document.getElementById('reflex-game-section').style.display = 'flex';
+                refleksSkorlariniGetir();
+            }
+        }
+
+        function anaMenuyeDon() {
+            document.getElementById('pilot-game-section').style.display = 'none';
+            document.getElementById('reflex-game-section').style.display = 'none';
+            document.getElementById('arcade-menu').style.display = 'flex';
+        }
+
+        async function skoruKaydet(deneme) {
+            try {
+                const { data: mevcutlar } = await _supabase.from('skorlar').select('deneme_sayisi').eq('kullanici', aktifKullanici);
+                if (mevcutlar && mevcutlar.length > 0) {
+                    if (deneme < mevcutlar[0].deneme_sayisi) {
+                        await _supabase.from('skorlar').update({ deneme_sayisi: deneme, takim: aktifTakim }).eq('kullanici', aktifKullanici);
+                    }
+                } else {
+                    await _supabase.from('skorlar').insert([{ kullanici: aktifKullanici, deneme_sayisi: deneme, takim: aktifTakim }]);
+                }
+                skorlariGetir();
+            } catch (err) { console.error(err); }
+        }
+
+        async function skorlariGetir() {
+            const listContainer = document.getElementById('scoreboard-list');
+            try {
+                const { data } = await _supabase.from('skorlar').select('*').order('deneme_sayisi', { ascending: true }).limit(5);
+                if (!data || data.length === 0) { listContainer.innerHTML = 'Henüz skor yok.'; return; }
+                listContainer.innerHTML = '';
+                data.forEach((row, index) => {
+                    const takimBilgi = takimKodlari[row.takim] || { kod: "F1", renk: "#e10600" };
+                    listContainer.innerHTML += `
+                        <div class="score-row">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span>${index + 1}. ${row.kullanici}</span>
+                                <span class="team-code-badge" style="background-color: ${takimBilgi.renk};">${takimBilgi.kod}</span>
+                            </div>
+                            <span class="score-tries">${row.deneme_sayisi} Tahmin</span>
+                        </div>
+                    `;
+                });
+            } catch (err) { listContainer.innerHTML = 'Hata oluştu.'; }
+        }
+
+        function onerileriGoster() {
+            const input = document.getElementById('guessInput');
+            const deger = input.value.trim().toLowerCase();
+            const suggestionsBox = document.getElementById('suggestions');
+            suggestionsBox.innerHTML = '';
+            if (deger.length === 0) { suggestionsBox.style.display = 'none'; return; }
+            const filtrelenmis = pilotlar.filter(p => p.ad.toLowerCase().includes(deger));
+            if (filtrelenmis.length === 0) { suggestionsBox.style.display = 'none'; return; }
+            filtrelenmis.forEach(pilot => {
+                const item = document.createElement('div');
+                item.classList.add('suggestion-item');
+                item.textContent = pilot.ad;
+                item.onclick = () => { input.value = pilot.ad; suggestionsBox.style.display = 'none'; };
+                suggestionsBox.appendChild(item);
+            });
+            suggestionsBox.style.display = 'block';
+        }
+
+        function pitStopYap() {
+            if (pitStopHakki <= 0) return;
+            denemeSayisi++; pitStopHakki--;
+            document.getElementById('pitStopCount').textContent = pitStopHakki;
+            if (pitStopHakki === 0) document.getElementById('pitstop-btn').disabled = true;
+            const banner = document.getElementById('pitstop-banner');
+            banner.textContent = pitStopHakki === 1 ? `Pit Stop: Ülkesi ${gizliPilot.ulke}!` : `Pit Stop: Numarası ${gizliPilot.numara}!`;
+            banner.style.display = 'block';
+        }
+
+        function yarisiBirak() {
+            document.getElementById('result-modal-title').textContent = "DNF (YARIŞ DIŞI)";
+            document.getElementById('correctPilotName').textContent = gizliPilot.ad;
+            document.getElementById('result-modal').style.display = 'flex';
+        }
+
+        function yeniTuraBasla() { location.reload(); }
+
+        function tahminEt() {
+            const input = document.getElementById('guessInput');
+            const tahminAdi = input.value.trim().toLowerCase();
+            document.getElementById('suggestions').style.display = 'none';
+            const bulunanPilot = pilotlar.find(p => p.ad.toLowerCase() === tahminAdi);
+            if (!bulunanPilot) { alert("Geçerli bir pilot seç!"); return; }
+
+            denemeSayisi++;
+            const tbody = document.getElementById('tableBody');
+            const yeniSatir = document.createElement('tr');
+
+            const takimClass = bulunanPilot.takim === gizliPilot.takim ? 'green' : 'red';
+            const ulkeClass = bulunanPilot.ulke === gizliPilot.ulke ? 'green' : 'red';
+            let yasMetin = bulunanPilot.yas + (bulunanPilot.yas === gizliPilot.yas ? '' : (bulunanPilot.yas < gizliPilot.yas ? ' ⬆️' : ' ⬇️'));
+            let numaraMetin = bulunanPilot.numara + (bulunanPilot.numara === gizliPilot.numara ? '' : (bulunanPilot.numara < gizliPilot.numara ? ' ⬆️' : ' ⬇️'));
+            let sampiyonlukMetin = bulunanPilot.sampiyonluk + (bulunanPilot.sampiyonluk === gizliPilot.sampiyonluk ? '' : (bulunanPilot.sampiyonluk < gizliPilot.sampiyonluk ? ' ⬆️' : ' ⬇️'));
+
+            yeniSatir.innerHTML = `
+                <td>${bulunanPilot.ad}</td>
+                <td><span class="box ${takimClass}">${bulunanPilot.takim}</span></td>
+                <td><span class="box ${ulkeClass}">${bulunanPilot.ulke}</span></td>
+                <td><span class="box ${bulunanPilot.yas === gizliPilot.yas ? 'green' : 'red'}">${yasMetin}</span></td>
+                <td><span class="box ${bulunanPilot.numara === gizliPilot.numara ? 'green' : 'red'}">${numaraMetin}</span></td>
+                <td><span class="box ${bulunanPilot.sampiyonluk === gizliPilot.sampiyonluk ? 'green' : 'red'}">${sampiyonlukMetin}</span></td>
+            `;
+            tbody.prepend(yeniSatir);
+            input.value = "";
+
+            if (bulunanPilot.ad === gizliPilot.ad) {
+                skoruKaydet(denemeSayisi);
+                document.getElementById('result-modal-title').textContent = "TEBRİKLER ŞAMPİYON!";
+                document.getElementById('correctPilotName').textContent = gizliPilot.ad;
+                document.getElementById('result-modal').style.display = 'flex';
+            }
+        }
+
+        // --- REAKSİYON ÖLÇER FONKSİYONLARI (İSİM ÇAKIŞMASI OLMADAN) ---
+        let reaksiyonDurumu = "BASLANGIC";
+        let rBaslangicZamani = 0;
+        let rZamanlayici = null;
+        let audioCtx = null;
+        const rBulbs = [document.getElementById('rb1'), document.getElementById('rb2'), document.getElementById('rb3'), document.getElementById('rb4'), document.getElementById('rb5')];
+
+        function refleksSesCal(frekans, sure) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.frequency.value = frekans;
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + sure);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + sure);
+            } catch (e) {}
+        }
+
+        function refleksButonTiklandi() {
+            const rBtn = document.getElementById('reaction-btn');
+            const rRes = document.getElementById('reflex-result-display');
+
+            if (reaksiyonDurumu === "BASLANGIC" || reaksiyonDurumu === "BITTI") {
+                reaksiyonSerisiniBaslat();
+            } else if (reaksiyonDurumu === "BEKLEME") {
+                clearTimeout(rZamanlayici); rIsiklariSifirla();
+                rRes.innerHTML = "<span style='color:#e10600;'>FALSE START!</span>";
+                rBtn.textContent = "TEKRAR DENE"; rBtn.className = "btn-ready";
+                reaksiyonDurumu = "BITTI";
+            } else if (reaksiyonDurumu === "YESIL") {
+                let sure = parseFloat(((performance.now() - rBaslangicZamani) / 1000).toFixed(3));
+                rIsiklariSifirla();
+                rRes.innerHTML = `Süren: <span style="color:#2ecc71;">${sure} saniye</span>`;
+                rBtn.textContent = "TEKRAR DENE"; rBtn.className = "btn-ready";
+                reaksiyonDurumu = "BITTI";
+                refleksSkorKaydet(sure);
+            }
+        }
+
+        function reaksiyonSerisiniBaslat() {
+            const rBtn = document.getElementById('reaction-btn');
+            const rRes = document.getElementById('reflex-result-display');
+            rRes.textContent = "Işıklar yanıyor...";
+            rBtn.textContent = "BEKLE..."; rBtn.className = "btn-wait";
+            reaksiyonDurumu = "BEKLEME";
+            rIsiklariSifirla();
+
+            let aktifIndex = 0;
+            let interval = setInterval(() => {
+                if (aktifIndex < 5) {
+                    rBulbs[aktifIndex].classList.add('active');
+                    refleksSesCal(440, 0.15);
+                    aktifIndex++;
+                } else {
+                    clearInterval(interval);
+                    let bekleme = Math.floor(Math.random() * 2000) + 1200;
+                    rZamanlayici = setTimeout(() => {
+                        rIsiklariSifirla();
+                        refleksSesCal(880, 0.3);
+                        rBaslangicZamani = performance.now();
+                        rBtn.textContent = "ŞİMDİ BAS!"; rBtn.className = "btn-click";
+                        reaksiyonDurumu = "YESIL";
+                    }, bekleme);
+                }
+            }, 1000);
+        }
+
+        function rIsiklariSifirla() {
+            rBulbs.forEach(b => { b.classList.remove('active'); b.classList.remove('green'); });
+        }
+
+        async function refleksSkorKaydet(sure) {
+            if (!aktifKullanici) {
+                alert("Önce bir rumuz belirlemelisin!");
+                return;
+            }
+            try {
+                const { data: mevcutlar } = await _supabase.from('refleks_skorlari').select('sure').eq('kullanici', aktifKullanici);
+                if (mevcutlar && mevcutlar.length > 0) {
+                    if (sure < mevcutlar[0].sure) {
+                        await _supabase.from('refleks_skorlari').update({ sure: sure }).eq('kullanici', aktifKullanici);
+                    }
+                } else {
+                    await _supabase.from('refleks_skorlari').insert([{ kullanici: aktifKullanici, sure: sure }]);
+                }
+                refleksSkorlariniGetir();
+            } catch (err) { console.error("Refleks kayıt hatası:", err); }
+        }
+
+        async function refleksSkorlariniGetir() {
+            const listContainer = document.getElementById('refleks-score-list');
+            try {
+                const { data } = await _supabase.from('refleks_skorlari').select('*').order('sure', { ascending: true }).limit(5);
+                if (!data || data.length === 0) { listContainer.innerHTML = 'Henüz skor yok.'; return; }
+                listContainer.innerHTML = '';
+                data.forEach((row, index) => {
+                    listContainer.innerHTML += `
+                        <div class="score-row">
+                            <span><b>${index + 1}.</b> ${row.kullanici}</span>
+                            <span style="color: #2ecc71; font-weight: bold;">${row.sure} sn</span>
+                        </div>
+                    `;
+                });
+            } catch (err) { listContainer.innerHTML = 'Hata.'; }
+        }
+    </script>
+</body>
+</html>
